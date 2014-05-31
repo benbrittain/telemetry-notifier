@@ -25,10 +25,10 @@ def startMapReduce(functionFile, filterFile, cached):
     command = "python -m mapreduce.job " + functionFile + " --input-filter " + filterFile + " "
     command = command +  "--num-mappers 16 --num-reducers 4 --work-dir /mnt/telemetry/work --output /mnt/telemetry/my_mapreduce_results.out --bucket 'telemetry-published-v1' "
     if not cached:
+        command = command + "--data-dir /mnt/telemetry/work"
+    else:
         command = command + " --local-only \
             --data-dir /mnt/telemetry/work/cache"
-    else:
-        command = command + "--data-dir /mnt/telemetry/work"
 
     print(command)
 
@@ -37,7 +37,7 @@ def startMapReduce(functionFile, filterFile, cached):
         print(line)
 
 def makeMapReduce(measure):
-    fout = "import json \ndef map(k, d, v, cx):\n\tj = json.loads(v)\n\tif u\'WEBRTC_ICE_SUCCESS_RATE\' in j['histograms'].keys():\n\t\thisto = json.dumps(j['histograms'][u'WEBRTC_ICE_SUCCESS_RATE'])\n\t\tversion = j['info']['appUpdateChannel']\n\t\tcx.write(histo, version)"
+    fout = "import json\ndef map(k, d, v, cx):\n\tj = json.loads(v)\n\tif u\'WEBRTC_ICE_SUCCESS_RATE\' in j['histograms'].keys():\n\t\thisto = json.dumps(j['histograms'][u'WEBRTC_ICE_SUCCESS_RATE'])\n\t\tversion = j['info']['appUpdateChannel']\n\t\tbranch = j['info']['appVersion']\n\t\tcx.write(histo, version + '/' + branch)"
     return fout
 
 def main():
@@ -66,7 +66,7 @@ def main():
     f.write(makeMapReduce(measure))
     f.close()
 
-    startMapReduce(functionFile, filterFile, False)
+    startMapReduce(functionFile, filterFile, True)
 
 
     pass
