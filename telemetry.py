@@ -20,7 +20,6 @@ def genFilter(startDay, endDay):
         {"field_name": "appVersion", "allowed_values": "*"}, {"field_name": "appBuildID", "allowed_values": "*"},
         {"field_name": "submission_date", "allowed_values": {"min":startDay, "max":endDay}}]},indent=2)
 
-#def createMapReduce():
 
 def startMapReduce(functionFile, filterFile, cached):
     command = "python -m mapreduce.job " + functionFile + " --input-filter " + filterFile + " "
@@ -36,7 +35,6 @@ def startMapReduce(functionFile, filterFile, cached):
     p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     for line in p.stdout.readlines():
         print(line)
-    retval = p.wait()
 
 def makeMapReduce(measure):
     fout = "import json \ndef map(k, d, v, cx):\n\tj = json.loads(v)\n\tif u\'WEBRTC_ICE_SUCCESS_RATE\' in j['histograms'].keys():\n\t\thisto = json.dumps(j['histograms'][u'WEBRTC_ICE_SUCCESS_RATE'])\n\t\tversion = j['info']['appUpdateChannel']\n\t\tcx.write(histo, version)"
@@ -68,7 +66,7 @@ def main():
     f.write(makeMapReduce(measure))
     f.close()
 
-    startMapReduce(functionFile, filterFile, True)
+    startMapReduce(functionFile, filterFile, False)
 
 
     pass
