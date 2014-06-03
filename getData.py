@@ -23,16 +23,16 @@ class PrintThread(threading.Thread):
     def __init__(self, queue, date, measure):
         threading.Thread.__init__(self)
         self.outqueue = outqueue
-        self.fout = open(measurue + '_' + date +'.out', 'w')
+        self.fout = open(measure + '_' + date +'.out', 'w')
     def run(self):
         while True:
             result = self.outqueue.get()
-            self.fout.write(result)
+            self.fout.write(result + "\n")
             self.outqueue.task_done()
 
 class RelevantData(threading.Thread):
   """Threaded Key Acqusition"""
-  def __init__(self, queue, measure):
+  def __init__(self, inqueue, outqueue, measure):
     threading.Thread.__init__(self)
     self.inqueue = inqueue
     self.outqueue = outqueue
