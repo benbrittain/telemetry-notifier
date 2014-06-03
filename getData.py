@@ -10,27 +10,39 @@ import json as json
 import argparse
 import Queue
 import threading
-#from backports import lzma # pip install backports.lzma (need liblzma-dev package)
-import lzmaffi as lzma
+from backports import lzma # pip install backports.lzma (need liblzma-dev package)
 from datetime import datetime
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key
 
 # Global Queue to manage the network threads
-queue = Queue.Queue()
+inqueue = Queue.Queue()
+outqueue = Queue.Queue()
+
+class PrintThread(threading.Thread):
+    def __init__(self, queue, date, measure):
+        threading.Thread.__init__(self)
+        self.outqueue = outqueue
+        self.fout = open(measurue + '_' + date +'.out', 'w')
+    def run(self):
+        while True:
+            result = self.outqueue.get()
+            self.fout.write(result)
+            self.outqueue.task_done()
 
 class RelevantData(threading.Thread):
   """Threaded Key Acqusition"""
   def __init__(self, queue, measure):
     threading.Thread.__init__(self)
-    self.queue = queue
+    self.inqueue = inqueue
+    self.outqueue = outqueue
     self.conn = S3Connection()
     self.bucket = self.conn.get_bucket('telemetry-published-v1')
     self.measure = measure
 
   def run(self):
     while True:
-      key = self.queue.get()
+      key = self.inqueue.get()
 
       k = Key(self.bucket)
       k.key=key
@@ -44,8 +56,8 @@ class RelevantData(threading.Thread):
             histo = json.dumps(j['histograms'][self.measure])
             version = j['info']['appUpdateChannel']
             branch = j['info']['appVersion']
-            print(histo + ',' + version + ',' + branch)
-      self.queue.task_done()
+            self.outqueue.put(histo + ',' + version + ',' + branch)
+      self.inqueue.task_done()
 
 class Job:
   """A class for acquireing the Telemetry Data"""
@@ -102,7 +114,7 @@ class Job:
                       yield prefix
 
   def fetch_and_sanatize(self, fin):
-    queue.put(fin)
+    inqueue.put(fin)
     # TODO stores data in a Platform/measurment/day setup
     pass
 
@@ -120,13 +132,18 @@ def main():
   job = Job(args)
 
   for i in range(40):
-    t = RelevantData(queue, args.measure)
+    t = RelevantData(inqueue, outqueue, args.measure)
     t.setDaemon(True)
     t.start()
 
+  thread = PrintThread(outqueue, args.date, args.measure)
+  thread.setDaemon(True)
+  thread.start()
+
   job.get_filtered_files_s3()
 
-  queue.join()
+  inqueue.join()
+  outqueue.join()
   print("Finished getting data")
 
 if __name__ == "__main__":
